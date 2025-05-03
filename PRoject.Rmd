@@ -1,0 +1,38 @@
+---
+title: "PRoject"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+subtitle: 
+author: sophie and Diya
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(car)
+library(leaps)
+myResPlots <- function(model, label){
+  
+  #Normal quantile plot of studentized residuals
+  qqPlot(rstudent(model), pch = 19, main = paste("NQ Plot of Studentized Residuals,", label))
+  
+  #plot of fitted vs. studentized residuals
+  plot(rstudent(model) ~ model$fitted.values, pch = 19, col = 'red', xlab = "Fitted Values", ylab = "Studentized Residuals",
+     main = paste("Fits vs. Studentized Residuals,", label))
+  abline(h = 0, lwd = 3)
+  abline(h = c(2,-2), lty = 2, lwd = 2, col="blue")
+  abline(h = c(3,-3), lty = 2, lwd = 2, col="green")
+
+}
+```
+
+This assignment uses data from the International Social Survey Program on Environment from 2020
+
+```{r}
+envdat <- read.csv("https://raw.githubusercontent.com/jreuning/sds230_data/refs/heads/main/ISS_2020.csv")
+dim(envdat)
+names(envdat)
+envdat2 <- envdat[envdat$country %in% c(40, 352, 392, 554, 608, 643, 764),]
+dim(envdat2)
+```
