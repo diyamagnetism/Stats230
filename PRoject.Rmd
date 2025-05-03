@@ -30,7 +30,7 @@ myResPlots <- function(model, label){
 This assignment uses data from the Anime Recommendation Database 2020 on Kaggle, based on stats on myanimelist.
 
 ```{r}
-anime <- read.csv("https://raw.githubusercontent.com/diyamagnetism/Stats230/refs/heads/main/anime.csv?token=GHSAT0AAAAAADDAE3NHGPPEEMSDA6FJFRNO2AVMONA")
+anime <- read.csv("https://github.com/diyamagnetism/Stats230/raw/refs/heads/main/anime.csv")
 dim(anime)
 names(anime)
 head(anime)
@@ -43,21 +43,53 @@ head(anime)
 
 library(tidyr)
 
+anime[anime == "Unknown"] <- NA
+
 anime$Genres
-anime2 <- anime[, c("Name", "Genres")]
-anime2 <- separate_longer_delim(anime2, Genres, delim=",")
+
+anime$Genres <- gsub("Hentai|Ecchi|Harem", "Explicit", anime$Genres)
+
+anime$Genres <- gsub("Yuri|Yaoi|Shounen Ai|Shoujo Ai", "LGBT", anime$Genres)
+
+anime$Genres <- gsub("Dementia", "Psychological", anime$Genres)
+
+anime$Genres <- gsub("Demons|Magic|Supernatural|Super Power|Vampire", "Fantasy", anime$Genres)
+
+anime$Genres <- gsub("Space|Mecha", "Sci-Fi", anime$Genres)
+anime$Genres <- gsub("Military|Cars|Police|Martial Arts", "Action", anime$Genres)
+anime$Genres <- gsub("Samurai", "Historical", anime$Genres)
+anime$Genres <- gsub("Parody", "Comedy", anime$Genres)
+
+
+anime2 <- anime[, c("Name", "Score", "Type", "Episodes", "Aired", "Studios", "Source", "Duration", "Rating", "Popularity", "Members", "Favorites", "Dropped", "Plan.to.Watch", "Score.10", "Score.9", "Score.8", "Score.7", "Score.6", "Score.5", "Score.4", "Score.3", "Score.2", "Score.1")]
+
+#anime2 <- separate_longer_delim(anime2, Genres, delim=",")
+
 genres_split <- strsplit(anime$Genres, ",\\s*")
+table(unlist(genres_split))
 unique_genres <- sort(unique(unlist(genres_split)))
+unique_genres
+
+unknown_rows <- anime[apply(anime, 1, function(row) any(row == "Unknown")), ]
+print(unknown_rows)
 
 for (genre in unique_genres){
-  in anime$Genre contains the word
-  anime$[genre name] column = 1
-  otherwise is 0
+  anime2[[genre]] <- sapply(genres_split, function(x) as.integer(genre %in% x))
 }
-table(anime2$Genres)
 
-anime2$Name[anime2$Genres=="Ai"]
-anime$Genre[anime$Name =="Loveless"]
+head(anime2)
+table(anime2$Type)
+
+#anime2$Aired clean this
+#anime2$AiredDecade make this
+#anime2$Duration clean this
+#anime2$TotalDuration make this
+#table(anime2$Rating) change names
+#table(anime2$Source) clean this
+
+names(anime2)
+
+
 
 ```
 
