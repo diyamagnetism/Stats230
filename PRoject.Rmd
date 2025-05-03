@@ -27,12 +27,44 @@ myResPlots <- function(model, label){
 }
 ```
 
-This assignment uses data from the International Social Survey Program on Environment from 2020
+This assignment uses data from the Anime Recommendation Database 2020 on Kaggle, based on stats on myanimelist.
 
 ```{r}
-envdat <- read.csv("https://raw.githubusercontent.com/jreuning/sds230_data/refs/heads/main/ISS_2020.csv")
-dim(envdat)
-names(envdat)
-envdat2 <- envdat[envdat$country %in% c(40, 352, 392, 554, 608, 643, 764),]
-dim(envdat2)
+anime <- read.csv("https://raw.githubusercontent.com/diyamagnetism/Stats230/refs/heads/main/anime.csv?token=GHSAT0AAAAAADDAE3NHGPPEEMSDA6FJFRNO2AVMONA")
+dim(anime)
+names(anime)
+head(anime)
+
+
+
+```
+
+```{r}
+
+library(tidyr)
+
+anime$Genres
+anime2 <- anime[, c("Name", "Genres")]
+anime2 <- separate_longer_delim(anime2, Genres, delim=",")
+genres_split <- strsplit(anime$Genres, ",\\s*")
+unique_genres <- sort(unique(unlist(genres_split)))
+
+for (genre in unique_genres){
+  in anime$Genre contains the word
+  anime$[genre name] column = 1
+  otherwise is 0
+}
+table(anime2$Genres)
+
+anime2$Name[anime2$Genres=="Ai"]
+anime$Genre[anime$Name =="Loveless"]
+
+```
+
+
+
+
+```{r}
+table(anime$Genres)
+
 ```
