@@ -446,17 +446,21 @@ mean_diff <- mean(diff)
 ci <- quantile(diff, c(0.025, 0.975))
 
 paste(ci)
+```
+###Bootstrap Confidence Intervals of Difference in LGBT Anime Proportion
 
+I wanted to investigate whether the proportion of LGBT anime increased after the year 2000 using a bootstrap. I first computed the proportion of LGBT anime for each year. I then grouped the years into two periods: 1981(the year when the first animes in the LGBT genre were released) to 2000; and after 2000. To assess the difference in average yearly proportions between these periods, we applied bootstrap resampling on the yearly proportions, generating 10,000 samples. 
+
+
+```{r}
 hist(diff, breaks = 50, main = "Bootstrap Distribution of Difference in Yearly LGBT Percentage", 
      xlab = "Difference in Proportions (After - Before)", col = "skyblue")
 abline(v = ci, col = "red", lty = 2)
 abline(v = mean_diff, col = "blue", lwd = 2)
 
-
-
-
-
 ```
+
+The resulting bootstrapped 95% confidence interval for the difference in average yearly LGBT proportions (after 2000 minus 1981–2000) was approximately –0.398 to 1.329. Since this interval includes zero, we conclude that there is no statistically significant evidence of an increase in the average yearly proportion of LGBT anime after 2000 based on this resampling approach.
 
 
 ```{r}
