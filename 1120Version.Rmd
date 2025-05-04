@@ -258,6 +258,13 @@ source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxpl
 ```
 
 
+# Data Visualization
+
+## Boxplots of Dropped Animes
+
+We then examine how ratings (G to Rx) and source material affect how many people drop a particular anime.
+
+
 ```{r}
 
 
@@ -280,6 +287,15 @@ boxplot(anime2$logDropped ~ anime2$Source,
 #boxplot.with.outlier.label(anime2$logDropped, anime2$Name)
 
 ```
+Among ratings, R rated animes had the highest median number of drops. G, PG, and Rx rated anime are heavily right skewed, even after a log transformation. R rated animes also had the highest interquartile range. Rx had the lowest range.
+
+As for source material, light novels have the highest median number of drops. However, original and game based animes have the highest number of high drop outliars
+
+## Histograms
+
+The scores of anime appear to be normally distributed, while the log number of Members, or followers of an anime are right skewed. This makes sense because a select few shows are wildly popular.
+
+
 ```{r}
 
 
@@ -302,6 +318,14 @@ hist(anime2$logMembers,
 
 
 ```
+
+# T-test
+
+We then performed a two sided t-test. We tested whether the number of people who have completed an anime
+are higher than the number of people who drop an anime. The null hypothesis was that there was no difference between the mean number of people who completed vs dropped an anime. The alternative hypothesis was that there was a difference. We obtained a p value of 2.2e-16 under a 95% confidence interval. The mean difference was 29563 people
+
+
+
 ```{r}
 
 par(mfrow = c(4, 6), mar = c(2, 2, 2, 1), oma = c(0, 0, 4, 0))
@@ -324,6 +348,14 @@ for (genre in unique_genres) {
 mtext("Proportion of Anime by Genre and Year", outer = TRUE, cex = 1.5)
 
 ```
+## Permutation test
+
+MyAnimeList and many other online anime communities are very male-dominated. I was curious to see if the scores of anime marketed towards men were significantly higher than anime marketed towards women. 
+
+I examined this through a permutation test. I created a column titled 'GenderMarketing' and assigned a numeric value to men vs women marketed animes. Male marketed animes were obtained from the 'Shounen' and 'Seinen' columns (teenage vs adult men), wheras women marketed animes were obtained from 'Shoujo' and 'Josei' (teenage vs adult women).
+
+We used a seed value of 1 and had an N of 10,000.
+
 
 ```{r}
 
@@ -413,6 +445,12 @@ abline(v = actualdiff, col = "blue", lwd = 3)
 text(actualdiff - 0.03, 300 , paste("Actual Diff in Means =", round(actualdiff,2)),srt = 90)
 ```
 
+If there was no difference between scoring of anime marketed towards men vs. women, we would expect the actual difference in means to lie within the normal distribution centered at zero. Instead, it is statistically significant, with the difference in mean scores far from the null hypothesis distribution. The actual difference in mean scores was 0.18.
+
+
+
+
+
 ```{r}
 
 
@@ -446,22 +484,31 @@ mean_diff <- mean(diff)
 ci <- quantile(diff, c(0.025, 0.975))
 
 paste(ci)
-```
-###Bootstrap Confidence Intervals of Difference in LGBT Anime Proportion
 
-I wanted to investigate whether the proportion of LGBT anime increased after the year 2000 using a bootstrap. I first computed the proportion of LGBT anime for each year. I then grouped the years into two periods: 1981(the year when the first animes in the LGBT genre were released) to 2000; and after 2000. To assess the difference in average yearly proportions between these periods, we applied bootstrap resampling on the yearly proportions, generating 10,000 samples. 
-
-
-```{r}
 hist(diff, breaks = 50, main = "Bootstrap Distribution of Difference in Yearly LGBT Percentage", 
      xlab = "Difference in Proportions (After - Before)", col = "skyblue")
 abline(v = ci, col = "red", lty = 2)
 abline(v = mean_diff, col = "blue", lwd = 2)
 
+
+
+
+
 ```
 
-The resulting bootstrapped 95% confidence interval for the difference in average yearly LGBT proportions (after 2000 minus 1981–2000) was approximately –0.398 to 1.329. Since this interval includes zero, we conclude that there is no statistically significant evidence of an increase in the average yearly proportion of LGBT anime after 2000 based on this resampling approach.
+# Multiple Regression
 
+We then performed a multiple regression to find out what predicts the logarithmic number of members following a particular anime. We looked at the following columns:
+
+- 'Score' : Average Score of anime out of 10
+- 'TotalRuntime' : Runtime as calculated by duration of episode times number of episodes
+- 'Score.1' : number of people who gave the anime a score of 1
+- 'Score.5': number of people who gave the anime a score of 5
+- 'Score.10' : number of people who gave the anime a score of 10
+- 'logDropped' : log 10 of people who dropped an anime
+- 'logCompleted' : log 10 of people who completed an anime
+
+These are all continuous variables.
 
 ```{r}
 # Multiple Regression with Score 1-10
@@ -508,6 +555,14 @@ anime4
 
 ```
 
+We produced a correlation plot and correlation chart of the variables of interest. According to the correlation plot, there is a strong positive correlation between 
+
+- logMembers and logScore.5
+- logMembers and logScore.10
+- logMembers and logDropped 
+- logMembers and logCompleted
+- logMembers and Score
+
 
 
 
@@ -516,6 +571,13 @@ anime4
 library(corrplot)
 
 ```
+
+Meanwhile, the correlation chart indicates some of these high correlations are misleading and due to non-linearity.
+Before proceeding to multiple linear regression, we cut:
+
+- logCompleted for colinearity reasons
+- score for lack of linearity
+- total runtime for lack of linearity
 
 
 ```{r}
@@ -558,7 +620,9 @@ myResPlots(lm1, "Model for Score")
 
 ```
 
-We remove logScore.1 for having a high p value in tryng to predict logMembers
+We remove logScore.1 for having a high p value in trying to predict logMembers.
+There wasn't that much left to do in this regression analysis. 
+
 
 ```{r}
 #model with all predictors
@@ -570,6 +634,9 @@ myResPlots(lm2, "Model for Members")
 
 ```
 
+We see that the distribution is relatively normal except for extremely high values. Otherwise the residuals fall within the normal bounds. However, there is some heteroskacdicity in our plot
+
+Our model is close to 1 on box cox, indicating it is relatively normal.
 
 
 
@@ -617,7 +684,50 @@ for (i in 3:7){
 }
 ```
 
+# ANCOVA
+
+We perform an Ancova on the relationship between log Dropped anime vs Score as factored by age rating. The results are below. 
+
 ```{r}
+
+variable_list <-  c("logDropped", "Rating", "Score.1", "Dropped", "logMembers", "Score")
+
+anime5 <- anime2[, variable_list]
+
+
+anime5$logScore.1 <- log(anime5$Score)
+
+anime5$logDropped[!is.finite(anime5$logDropped)] <- NA 
+
+anime4 <- na.omit(anime5[, variable_list])
+
+
+
+plot(logDropped ~ Score, data = anime5)
+
+
+m5 <- lm(logDropped ~ Score*Rating, data = anime5)
+#Again, get overall test of significance of terms
+myResPlots(m5, "Dropped")
+
+Anova(m5, type = 3)
+
+summary(m5)
+```
+It appears that the strongest interactions come from Score interacting with PG-13, Score interacting with R ratings, and the Rx rating.
+
+Now we will examine Welch's between log anime dropped and age ratings. 
+
+```{r}
+oneway.test(logDropped ~ Rating, data = anime5)
+```
+
+As well as a levene test and a Bartlet test.
+
+```{r}
+leveneTest(anime5$logDropped, factor(anime5$Rating))
+bartlett.test(anime5$logDropped, factor(anime5$Rating))
+
 
 ```
 
