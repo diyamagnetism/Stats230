@@ -45,6 +45,10 @@ library(tidyr)
 
 anime[anime == "Unknown"] <- NA
 
+genres_split <- strsplit(anime$Genres, ",\\s*")
+table(unlist(genres_split))
+unique_genres <- sort(unique(unlist(genres_split)))
+
 anime$Genres <- gsub("Hentai|Ecchi|Harem", "Explicit", anime$Genres)
 anime$Genres <- gsub("Yuri|Yaoi|Shounen Ai|Shoujo Ai", "LGBT", anime$Genres)
 anime$Genres <- gsub("Dementia", "Psychological", anime$Genres)
@@ -72,8 +76,43 @@ head(anime2)
 
 
 ```
+### Data Cleaning
 
+First, I replaced all values labeled as `"Unknown"` with proper missing values (`NA`) to standardize missing data across the dataset.
 
+## Cleaning Genres 
+
+Originally, each anime’s Genres column contained a comma-separated list of multiple genres. The dataset initially included the following unique genres:
+
+```
+Action, Adventure, Cars, Comedy, Dementia, Demons, Drama, Ecchi, Fantasy,
+Game, Harem, Hentai, Historical, Horror, Josei, Kids, Magic, Martial Arts,
+Mecha, Military, Music, Mystery, Parody, Police, Psychological, Romance, Samurai,
+School, Sci-Fi, Seinen, Shoujo, Shoujo Ai, Shounen, Shounen Ai, Slice of Life, Space,
+Sports, Super Power, Supernatural, Thriller, Vampire, Yaoi, Yuri
+```
+
+To simplify and group related genres, I consolidated them as follows:
+
+* "Hentai", "Ecchi", and "Harem" were grouped into "Explicit".
+* "Yuri", "Yaoi", "Shounen Ai", and "Shoujo Ai" were grouped into "LGBT".
+* "Dementia" was recategorized as "Psychological".
+* "Demons", "Magic", "Supernatural", "Super Power", and "Vampire" were grouped under "Fantasy".
+* "Space" and "Mecha" were combined into "Sci-Fi".
+* "Military", "Cars", "Police", and "Martial Arts" were grouped as "Action".
+* "Samurai" was recategorized as "Historical".
+* "Parody" was grouped under "Comedy".
+
+After cleaning and grouping, I transformed the Genres column into multiple boolean (0/1) columns, where each column represents a genre, and each anime is marked `1` if it belongs to that genre and `0` if not. The resulting genre columns are:
+
+```
+"Action", "Adventure", "Comedy", "Drama", "Explicit", "Fantasy", "Game",
+"Historical", "Horror", "Josei", "Kids", "LGBT", "Music", "Mystery",
+"Psychological", "Romance", "School", "Sci-Fi", "Seinen", "Shoujo", "Shounen",
+"Slice of Life", "Sports", "Thriller"
+```
+
+This format makes genre-based filtering and analysis much easier.
 
 
 ```{r}
@@ -110,9 +149,22 @@ anime2[anime2$Name == "Sore Ike! Anpanman",]$Episodes <- 1587
   
 anime2[anime2$Name == "Chibi Maruko-chan (1995)",]$Episodes <- 1468
 
-
-
 ```
+## Missing Episode Counts
+
+I noticed that several popular series had missing values in their Episode Count column. After reviewing the data, I identified three main reasons for this:
+
+1. The series was ongoing at the time of data collection.
+2. The series was very long-running, often leading to incomplete entries.
+3. The anime lacked reliable data and had multiple missing columns.
+
+To address this:
+
+* I first removed any anime entries with missing Score values, which helped eliminate most of the incomplete and unreliable rows (resolving issue #3).
+* Then, for around a dozen well-known long-running series, I manually updated their episode counts using accurate figures from around 2020 (the year this dataset reflects). Examples include One Piece, Detective Conan, Crayon Shin-chan, and others, where I input their correct episode numbers.
+
+This process ensured that the Episode Count column is as complete and accurate as possible, especially for the most significant and popular titles in the dataset.
+
 
 ```{r}
 #anime2$Duration clean this
@@ -126,27 +178,52 @@ minutes<-gsub(".*?([0-9]{1}) min..*", "\\1", minutes)
 minutes<-as.numeric(minutes)
 minutes[is.na(minutes)]<-0
 
-anime2$TotalRuntime <- (60*hours + minutes)*(as.numeric(anime2$Episodes))
+anime2$EpisodeLength <- 60*hours + minutes
+anime2$TotalRuntime <- (anime2$Duration)*(as.numeric(anime2$Episodes))
 
 
 ```
 
+## Episode Duration Cleaning
+
+The Duration column originally contained strings like `"24 min. per ep."` or `"1 hr. 55 min."`.  
+To convert this into numeric values (total minutes per episode), I used `gsub()` to extract the hour and minute components separately.  
+Then, I calculated a new column EpisodeLength (in minutes) and another column TotalRuntime by multiplying the episode length by the total number of episodes.
+
 ```{r}
 
-anime2$Year = sum(is.na(as.integer(gsub(".* ([0-9]{4}).*", "\\1", anime2$Aired))))
-anime2$Decade = floor(as.integer(gsub(".* ([0-9]{4}).*", "\\1", anime2$Aired))/10)*10
+anime2$Year = as.integer(gsub(".* ([0-9]{4}).*", "\\1", anime2$Aired))
+anime2$Decade = floor((anime2$Year)/10)*10
 
 
 
 anime2$Rating <- gsub("?(.*) -.*", "\\1", anime2$Rating)
 table(anime2$Rating)
 
-table(anime2$Source)
 
-anime2$Rating <- gsub("?(.*) -.*", "\\1", anime2$Rating)
-#table(anime2$Source) clean this
 
-names(anime2)
+anime2$Source <- gsub(".*manga.*", "Manga", anime2$Source)
+anime2$Source <- gsub(".*book.*", "Novel", anime2$Source, ignore.case=TRUE)
+anime2$Source <- gsub("Visual novel|Card game", "Game", anime2$Source)
+anime2$Source <- gsub("Music|Radio", "Other", anime2$Source)
+unique(anime2$Source)
 
+head(anime2)
 ```
+## Year and Decade
+
+From the Aired column (which contained ranges like `"Apr 3, 1998 to Apr 24, 1999"`),  I extracted the first 4-digit year using `gsub()` and stored it in a new column Year. Then, I calculated the Decade by flooring the year to the nearest decade (e.g., 1998 → 1990). The Decade column will be a useful feature for analyzing trends over time —  for example, to compare the popularity, genres, or scores of anime released in different decades.
+
+## Cleaning Rating Categories
+
+The Rating column originally had extra descriptions (e.g., `"PG-13 - Teens 13 or older"`).  I cleaned it using `gsub()` to keep only the core rating (e.g., `"PG-13"`).  This makes the rating categories consistent and easier to print in figures.
+
+## Cleaning Source Material Categories
+
+Similarly to the Genre column, I simplified the Source column:
+
+- Any source mentioning "manga" is categorized as `"Manga"`.
+- Sources mentioning "book" are categorized as `"Novel"`.
+- `"Visual novel"` and `"Card game"` are grouped as `"Game"`.
+- `"Music"` and `"Radio"` are grouped as `"Other"`.
 
