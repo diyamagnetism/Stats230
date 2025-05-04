@@ -1,0 +1,444 @@
+---
+title: "PRoject"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+subtitle: 
+author: sophie and Diya
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(car)
+library(leaps)
+myResPlots <- function(model, label){
+  
+  #Normal quantile plot of studentized residuals
+  qqPlot(rstudent(model), pch = 19, main = paste("NQ Plot of Studentized Residuals,", label))
+  
+  #plot of fitted vs. studentized residuals
+  plot(rstudent(model) ~ model$fitted.values, pch = 19, col = 'red', xlab = "Fitted Values", ylab = "Studentized Residuals",
+     main = paste("Fits vs. Studentized Residuals,", label))
+  abline(h = 0, lwd = 3)
+  abline(h = c(2,-2), lty = 2, lwd = 2, col="blue")
+  abline(h = c(3,-3), lty = 2, lwd = 2, col="green")
+
+}
+```
+
+This assignment uses data from the Anime Recommendation Database 2020 on Kaggle, based on stats on myanimelist.
+
+```{r}
+anime <- read.csv("https://github.com/diyamagnetism/Stats230/raw/refs/heads/main/anime.csv")
+dim(anime)
+names(anime)
+head(anime)
+
+
+
+```
+
+```{r}
+
+library(tidyr)
+
+anime[anime == "Unknown"] <- NA
+
+anime$Genres <- gsub("Hentai|Ecchi|Harem", "Explicit", anime$Genres)
+anime$Genres <- gsub("Yuri|Yaoi|Shounen Ai|Shoujo Ai", "LGBT", anime$Genres)
+anime$Genres <- gsub("Dementia", "Psychological", anime$Genres)
+anime$Genres <- gsub("Demons|Magic|Supernatural|Super Power|Vampire", "Fantasy", anime$Genres)
+anime$Genres <- gsub("Space|Mecha", "Sci-Fi", anime$Genres)
+anime$Genres <- gsub("Military|Cars|Police|Martial Arts", "Action", anime$Genres)
+anime$Genres <- gsub("Samurai", "Historical", anime$Genres)
+anime$Genres <- gsub("Parody", "Comedy", anime$Genres)
+
+
+anime2 <- anime[, c("Name", "Score", "Type", "Episodes", "Aired", "Studios", "Source", "Duration", "Rating", "Popularity", "Members", "Favorites", "Dropped", "Plan.to.Watch", "Score.10", "Score.9", "Score.8", "Score.7", "Score.6", "Score.5", "Score.4", "Score.3", "Score.2", "Score.1", "Completed")]
+
+#anime2 <- separate_longer_delim(anime2, Genres, delim=",")
+
+genres_split <- strsplit(anime$Genres, ",\\s*")
+table(unlist(genres_split))
+unique_genres <- sort(unique(unlist(genres_split)))
+
+
+for (genre in unique_genres){
+  anime2[[genre]] <- sapply(genres_split, function(x) as.integer(genre %in% x))
+}
+
+head(anime2)
+
+
+```
+
+
+
+
+```{r}
+anime2 <- anime2[!is.na(anime2$Score), ]
+
+anime2[is.na(anime2$Episodes),]
+anime2[is.na(anime2$Episodes)&anime2$Popularity<5000, ][order(anime2$Popularity[is.na(anime2$Episodes)&anime2$Popularity<5000]), ]
+
+anime2[anime2$Name == "One Piece",]$Episodes <- 923
+
+anime2[anime2$Name == "Sazae-san",]$Episodes <- 2771
+
+anime2[anime2$Name == "Boruto: Naruto Next Generations",]$Episodes <- 145
+
+anime2[anime2$Name == "Detective Conan",]$Episodes <- 970
+
+anime2[anime2$Name == "Beastars 2nd Season",]$Episodes <- 12
+
+anime2[anime2$Name == "Crayon Shin-chan",]$Episodes <- 1026
+
+anime2[anime2$Name == "Super Dragon Ball Heroes",]$Episodes <- 20
+
+anime2[anime2$Name == "Holo no Graffiti",]$Episodes <- 42
+  
+anime2[anime2$Name == "Fate/Grand Order",]$Episodes <- 20
+
+anime2[anime2$Name == "Doraemon (2005)",]$Episodes <- 591
+
+anime2[anime2$Name == "Nintama Rantarou",]$Episodes <- 2169
+
+anime2[anime2$Name == "Ojarumaru",]$Episodes <- 2082
+
+anime2[anime2$Name == "Sore Ike! Anpanman",]$Episodes <- 1587
+  
+anime2[anime2$Name == "Chibi Maruko-chan (1995)",]$Episodes <- 1468
+
+
+
+```
+
+```{r}
+#anime2$Duration clean this
+
+sum(is.na(anime2$Duration))
+
+hours <- as.numeric(gsub("?([0-9]) hr..*", "\\1", anime2$Duration))
+hours[is.na(hours)]<-0
+minutes<-gsub(".*?([0-9]{2}) min..*", "\\1", anime2$Duration)
+minutes<-gsub(".*?([0-9]{1}) min..*", "\\1", minutes)
+minutes<-as.numeric(minutes)
+minutes[is.na(minutes)]<-0
+
+anime2$TotalRuntime <- (60*hours + minutes)*(as.numeric(anime2$Episodes))
+
+
+```
+
+```{r}
+
+anime2$Year = sum(is.na(as.integer(gsub(".* ([0-9]{4}).*", "\\1", anime2$Aired))))
+anime2$Decade = floor(as.integer(gsub(".* ([0-9]{4}).*", "\\1", anime2$Aired))/10)*10
+
+
+
+anime2$Rating <- gsub("?(.*) -.*", "\\1", anime2$Rating)
+table(anime2$Rating)
+
+table(anime2$Source)
+
+anime2$Rating <- gsub("?(.*) -.*", "\\1", anime2$Rating)
+#table(anime2$Source) clean this
+
+names(anime2)
+
+```
+
+```{r}
+
+anime2$Score <- as.numeric(anime2$Score)
+anime2$Episodes <- as.numeric(anime2$Episodes)
+anime2$Score.1 <- as.numeric(anime2$Score.1)
+anime2$Score.2 <- as.numeric(anime2$Score.2)
+anime2$Score.3 <- as.numeric(anime2$Score.3)
+anime2$Score.4 <- as.numeric(anime2$Score.4)
+anime2$Score.5 <- as.numeric(anime2$Score.5)
+anime2$Score.6 <- as.numeric(anime2$Score.6)
+anime2$Score.7 <- as.numeric(anime2$Score.7)
+anime2$Score.8 <- as.numeric(anime2$Score.8)
+anime2$Score.9 <- as.numeric(anime2$Score.9)
+anime2$Score.10 <- as.numeric(anime2$Score.10)
+
+anime2
+```
+```{r}
+# labels outliers in a boxplot! use for something
+library(TeachingDemos)
+
+library(plyr)
+source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxplot.with.outlier.label.r") # Load the function
+
+par(cex = .7)
+boxplot.with.outlier.label(wb$Guns_per_100, wb$Country, col = "red", main = "Total Guns per 100", cex = .7)
+
+```
+
+
+```{r}
+
+
+anime2$logDropped <- log10(anime2$Dropped)
+anime2
+
+boxplot(anime2$logDropped ~ anime2$Rating,
+        xlab = "Rating",
+        ylab = "log Dropped",
+        col = c(2:8))
+
+
+boxplot(anime2$logDropped ~ anime2$Source,
+        xlab = "Source",
+        ylab = "log Dropped",
+        col = c(2:7, 2:7))
+
+
+
+#boxplot.with.outlier.label(anime2$logDropped, anime2$Name)
+
+```
+```{r}
+
+
+hist(anime2$Score, 
+     main = "Scores of Anime",
+     xlab = "Score",
+     ylab = "Frequency",
+     breaks = 30,
+     xlim = c(0,10),
+     col = "green")
+
+anime2$logMembers <- log10(anime2$Members)
+
+hist(anime2$logMembers, 
+     main = "Members",
+     xlab = "Log Number of Members",
+     ylab = "Frequency",
+     breaks = 50,
+     col = "blue")
+
+
+```
+```{r}
+
+anime2$logCompleted <- log10(anime2$Completed)
+
+
+
+t.test(anime2$Completed - anime2$Members, alternative = "two.sided", conf.level = 0.95, paired = FALSE)   
+
+
+
+# t test Completed - Dropped-- on average, is there a difference between members following an anime
+# people who have completed a show? apparently so.
+
+```
+
+```{r}
+anime2$MGenderMarket <- as.integer(anime2$Shounen + anime2$Seinen)
+anime2$MGenderMarket <- gsub(1,1, anime2$MGenderMarket)
+anime2$FGenderMarket <- as.integer(anime2$Shoujo + anime2$Josei)
+anime2$FGenderMarket <- gsub(1,2, anime2$FGenderMarket)
+
+
+
+anime2$FGenderMarket = as.integer(anime2$FGenderMarket)
+anime2$MGenderMarket = as.integer(anime2$MGenderMarket)
+
+
+
+anime2$GenderMarketing <- anime2$FGenderMarket + anime2$MGenderMarket
+
+anime2$GenderMarketing[anime2$GenderMarketing == 0] <- NA
+anime2
+
+```
+
+```{r}
+
+
+boyscores <- (anime2$Score[anime2$GenderMarketing == 1])
+girlscores <- (anime2$Score[anime2$GenderMarketing == 2])
+
+mean(na.omit(boyscores))
+mean(na.omit(girlscores))
+
+actualdiff <- mean(na.omit(boyscores)) - mean(na.omit(girlscores))
+
+(actualdiff)
+
+
+
+```
+
+
+```{r}
+
+# permuted sample mean difference between shounen + seinen scores vs shojo + josei scores-- myanimelist is (anecdotally) a male dominated site.
+# do shojo and josei routinely get disfavored?
+
+# boyMarketed <- shounen plus seinen
+# girlMarketed <- shojo plus josei
+
+
+set.seed(1)
+
+N <- 10000
+
+diffvals <- rep(NA, N)
+
+for (i in 1:N) {
+  fakeGM <- sample(anime2$GenderMarketing)  # default is replace = FALSE
+  diffvals[i] <- mean(na.omit(anime2$Score[fakeGM == 1])) -  mean(na.omit(anime2$Score[fakeGM == 2]))
+}
+
+
+
+
+
+```
+
+```{r}
+
+#Make histogram of permuted mean differences
+hist(diffvals, col = "magenta", main = "Permuted Sample Means Difference in Scores\n Between Anime Marketed Towards Men vs. Women", xlab = "Difference in Scores (M - F)", breaks = 50, 
+     xlim = c(-0.25,0.25))
+abline(v = actualdiff, col = "blue", lwd = 3)
+text(actualdiff - 0.03, 300 , paste("Actual Diff in Means =", round(actualdiff,2)),srt = 90)
+```
+
+```{r}
+
+# bootstrapped difference in mean proportion of LGBT anime before and after 2000. 
+# Japan only criminalized homosexuality in the 1800s, but they did not gain marriage or medical
+# visitation rights until very recently (post 2015). 
+
+# it might also be interesting to do a bootstrap of the scores between romance and LGBT
+# the genres we coalesced into LGBT are all romance oriented (there was no category pertaining
+# to trans people, even though playing with gender roles, gender swapping, and de facto trans character
+# is a staple of even older anime). How do their scores compare?
+
+# actually 
+
+
+
+
+
+```
+
+
+```{r}
+# Multiple Regression with Score 1-10
+
+
+
+anime2
+
+anime3 <- anime2[, c("Score", "TotalRuntime", "logMembers", "Score.1", "Score.5", "Score.10", "logDropped", "logCompleted")]
+
+anime3
+
+anime
+
+
+
+```
+
+
+```{r}
+
+
+anime3$logDropped[!is.finite(anime3$logDropped)] <- NA 
+anime3$logCompleted[!is.finite(anime3$logCompleted)] <- NA 
+
+anime3$logScore.1 <- log(anime3$Score.1)
+anime3$logScore.5 <- log(anime3$Score.5)
+anime3$logScore.10 <- log(anime3$Score.10)
+
+#Make object called WB4 which has complete data for variables we care about
+anime4 <- na.omit(anime3[, c("Score", "TotalRuntime", "logMembers", "logScore.1", "logScore.5", "logScore.10", "logDropped", "logCompleted")])
+
+
+
+
+
+anime4 <- anime4[complete.cases(anime4), ]
+
+anime4
+
+
+
+
+
+```
+
+
+
+
+```{r}
+
+library(corrplot)
+
+```
+
+
+```{r}
+# the questionmarks occur when there is not enough variance between variables
+
+
+
+sigcorr <- cor.mtest(anime4, conf.level = .95)
+corrplot.mixed(cor(anime4), lower.col="black", upper = "ellipse", tl.col = "black", number.cex=.7, 
+                tl.pos = "lt", tl.cex=.7, p.mat = sigcorr$p, sig.level = .05)
+```
+```{r}
+library(PerformanceAnalytics)
+```
+
+```{r}
+# lots of nonlinearity
+chart.Correlation(anime4, histogram = TRUE, pch = 19)
+
+
+
+
+```
+
+```{r}
+c("Score", "TotalRuntime", "logMembers", "logScore.1", "logScore.5", "logScore.10", "logDropped", "logCompleted")
+
+```
+
+We cut logCompleted for colinearity reasons, as well as score and total runtime for lack of linearity
+
+
+```{r}
+#model with all predictors
+lm1 <- lm(logMembers ~ logScore.1 + logScore.5 + logScore.10 + logDropped , data = anime4)
+summary(lm1)
+
+  
+myResPlots(lm1, "Model for Score")
+
+```
+
+We remove logScore.1 for having a high p value in tryng to predict logMembers
+
+```{r}
+#model with all predictors
+lm2 <- lm(logMembers ~ logScore.5 + logScore.10 + logDropped , data = anime4)
+summary(lm2)
+
+  
+myResPlots(lm2, "Model for Members")
+
+```
+
+
+
+
